@@ -1,0 +1,78 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ * Copyright (C) 2024  Philipp Emanuel Weidmann <pew@worldwidemann.com>
+ */
+
+html {
+    color: #ddf;
+    background-color: #002;
+}
+
+body {
+    margin: 0;
+}
+
+#editor {
+    max-width: 45em;
+    margin-left: auto;
+    margin-right: auto;
+    font-family: system-ui;
+    font-size: unset;
+}
+
+#editor .ql-editor {
+    min-height: 100vh;
+    /* Allow scrolling past the end of the document. */
+    padding-bottom: 10em;
+}
+
+/* Placeholder */
+#editor .ql-editor.ql-blank::before {
+    color: unset;
+    opacity: 0.4;
+}
+
+#editor p {
+    margin-bottom: 1em;
+}
+
+.split {
+    display: flex;
+    gap: 2em;
+    transition: gap 0.4s ease 0.2s;
+}
+
+.split.left-chosen,
+.split.right-chosen {
+    gap: 0;
+}
+
+.split .left,
+.split .right {
+    flex: 1;
+    min-width: 0;
+    opacity: 0.5;
+    transition: opacity 0.2s, flex 0.4s ease 0.2s;
+}
+
+.split .left.error,
+.split .right.error {
+    color: red;
+    opacity: 1;
+}
+
+.split .left.empty,
+.split .right.empty {
+    font-style: italic;
+}
+
+.split.left-chosen .left,
+.split.right-chosen .right {
+    opacity: 1;
+}
+
+.split.left-chosen .right,
+.split.right-chosen .left {
+    flex: 0;
+    opacity: 0;
+}
