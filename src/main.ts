@@ -11,7 +11,7 @@ import scrollIntoView from "scroll-into-view-if-needed";
 
 import ParagraphClipboard from "./clipboard.ts";
 import SplitEmbed from "./embed.ts";
-import { BASE_URL, API_KEY, MAX_TOKENS, PARAMS } from "./config.ts";
+import { BASE_URL, API_KEY, MAX_TOKENS, PARAMS, MODEL } from "./config.ts";
 
 enum State {
     Editing,
@@ -44,7 +44,7 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
     const params: OpenAI.CompletionCreateParamsStreaming = {
         stream: true,
         // This parameter is ignored by most OpenAI-compatible local API providers.
-        model: "gpt-3.5-turbo-instruct",
+        model: MODEL,
         prompt: prompt,
         max_tokens: MAX_TOKENS,
         // @ts-ignore: llama.cpp

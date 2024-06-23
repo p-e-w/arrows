@@ -9,6 +9,10 @@ export const API_KEY = "";
 // so it is usually not necessary to change this value.
 export const MAX_TOKENS = 500;
 
+// Specify the model name used by the API. 
+// Update this value if a different model is required.
+export const MODEL = "gpt-3.5-turbo-instruct";
+
 // Add generation/sampling parameters here. Their effect depends on the API provider.
 // No attempt is made to normalize these parameters across different providers.
 // They are passed to the API endpoint unmodified.
