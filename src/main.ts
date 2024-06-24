@@ -11,7 +11,7 @@ import scrollIntoView from "scroll-into-view-if-needed";
 
 import ParagraphClipboard from "./clipboard.ts";
 import SplitEmbed from "./embed.ts";
-import { BASE_URL, API_KEY, MAX_TOKENS, PARAMS } from "./config.ts";
+import { BASE_URL, API_KEY, MAX_TOKENS, PARAMS, MODEL, MODEL_TYPE, SYSTEM_PROMPT } from "./config.ts";
 
 enum State {
     Editing,
@@ -41,23 +41,34 @@ function scrollEmbedIntoView() {
 }
 
 async function streamText(prompt: string, pane: Element): Promise<string> {
-    const params: OpenAI.CompletionCreateParamsStreaming = {
-        stream: true,
-        // This parameter is ignored by most OpenAI-compatible local API providers.
-        model: "gpt-3.5-turbo-instruct",
-        prompt: prompt,
-        max_tokens: MAX_TOKENS,
-        // @ts-ignore: llama.cpp
-        n_predict: MAX_TOKENS,
-        // @ts-ignore: llama.cpp
-        cache_prompt: true,
-        ...PARAMS,
-    };
+    let params: any;
+    let stream: any;
 
-    const controller = new AbortController();
-    controllers.push(controller);
-
-    const stream = await client.completions.create(params, { signal: controller.signal });
+    if (MODEL_TYPE === "chat") {
+        params = {
+            stream: true,
+            model: MODEL,
+            messages: [{role: "system", "content": SYSTEM_PROMPT}, {role: "user", content: prompt }],
+            max_tokens: MAX_TOKENS
+        };
+        const controller = new AbortController();
+        controllers.push(controller);
+        stream = await client.chat.completions.create(params, { signal: controller.signal });
+    } else {
+        params = {
+            stream: true,
+            model: MODEL,
+            prompt: prompt,
+            max_tokens: MAX_TOKENS
+            // @ts-ignore: llama.cpp
+            // n_predict: MAX_TOKENS,
+            // @ts-ignore: llama.cpp
+            // cache_prompt: true
+        };
+        const controller = new AbortController();
+        controllers.push(controller);
+        stream = await client.completions.create(params, { signal: controller.signal });
+    }
 
     let text = "";
     let startFound = false;
@@ -65,7 +76,9 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
 
     for await (const chunk of stream) {
         let newText: string;
-        if (chunk.hasOwnProperty("choices")) {
+        if (MODEL_TYPE === "chat") {
+            newText = chunk.choices[0]?.delta?.content || "";
+        } else if (chunk.hasOwnProperty("choices")) {
             newText = chunk.choices[0].text;
         } else {
             // @ts-ignore: llama.cpp
