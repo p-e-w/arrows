@@ -29,6 +29,7 @@ let embedElement: Element;
 let choices: string[];
 let controllers: AbortController[];
 let completionCallback: (() => Promise<void>) | null;
+let fileHandle: FileSystemFileHandle;
 
 const client = new OpenAI({
     baseURL: BASE_URL,
@@ -207,6 +208,27 @@ const quill = new Quill("#editor", {
                         }
 
                         await generate();
+                    },
+                },
+                handleS: {
+                    // Ctrl/Cmd+s
+                    key: "s",
+                    shortKey: true,
+                    collapsed: true,
+                    handler: async () => {
+                        let text = quill.getText(0, quill.getLength());
+                        if( fileHandle === undefined) {
+                            fileHandle = await window.showSaveFilePicker({
+                                suggestedName: 'file.txt',
+                                types: [{
+                                    description: 'Text Files',
+                                    accept: {'text/plain': ['.txt']}
+                                }]
+                            });
+                        }
+                        const writableStream = await fileHandle.createWritable();
+                        await writableStream.write(text);
+                        await writableStream.close();
                     },
                 },
             },
