@@ -43,8 +43,6 @@ function scrollEmbedIntoView() {
 async function streamText(prompt: string, pane: Element): Promise<string> {
     const params: OpenAI.CompletionCreateParamsStreaming = {
         stream: true,
-        // This parameter is ignored by most OpenAI-compatible local API providers.
-        model: "gpt-3.5-turbo-instruct",
         prompt: prompt,
         max_tokens: MAX_TOKENS,
         // @ts-ignore: llama.cpp

@@ -12,7 +12,10 @@ export const MAX_TOKENS = 500;
 // Add generation/sampling parameters here. Their effect depends on the API provider.
 // No attempt is made to normalize these parameters across different providers.
 // They are passed to the API endpoint unmodified.
+// Model name parameter is ignored by most OpenAI-compatible local API providers but sometimes required for remote API providers, 
+// For model name paramater, use full name e.g. "mistralai/Mixtral-8x22B-Instruct-v0.1" (Note, top_k value of 1 also sometimes required.)
 export const PARAMS = {
+    model: "gpt-3.5-turbo-instruct",
     temperature: 1.0,
     top_k: 0,
     top_p: 1.0,
