@@ -87,8 +87,11 @@ using the web server of your choice.
 
 ## Configuration
 
-To set the base URL, API key, and generation parameters, simply edit the file
-[`src/config.ts`](src/config.ts).
+To set the base URL, API key, model, and generation parameters, simply edit the
+file [`src/config.ts`](src/config.ts). The model name is sent to the
+OpenAI-compatible completion endpoint. Some local providers ignore it when a
+model is already loaded, but it is required by providers that expose multiple
+models.
 
 
 ## Enabling parallel generation

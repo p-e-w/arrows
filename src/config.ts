@@ -5,6 +5,10 @@ export const BASE_URL = "http://localhost:8080/v1/";
 // Can be left blank for most local API providers.
 export const API_KEY = "";
 
+// The model name sent to the OpenAI-compatible completion endpoint.
+// Some local providers ignore this value when a model is already loaded.
+export const MODEL = "gpt-3.5-turbo-instruct";
+
 // Generation will be stopped automatically at the end of a paragraph,
 // so it is usually not necessary to change this value.
 export const MAX_TOKENS = 500;
