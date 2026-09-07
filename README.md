@@ -99,12 +99,20 @@ runtime in the settings panel (see below).
 
 ## Settings panel
 
-The base URL, API key, model, token limit, generation parameters, and the
-*chat completions* mode (see below) with its editable system prompt can be
-changed at runtime in the settings panel, without editing any files. Open the
+The base URL, API key, model, token limit, sampling parameters, the chat
+completions mode (see below) with its editable system prompt can be changed
+at runtime in the settings panel, without editing any files. Open the
 panel with the ⚙ button in the top right corner, or with
 <kbd>Ctrl</kbd>+<kbd>,</kbd> (<kbd>⌘</kbd>+<kbd>,</kbd> on macOS); close it
 with <kbd>Escape</kbd>, the &times; button, or <kbd>Enter</kbd> in a text field.
+
+Sampling parameters are exposed as individual fields; a field left empty
+means that the parameter is not sent, so the backend applies its own default.
+Provider-specific parameters beyond the fields can be supplied as JSON under
+*Extra parameters*. Whole generation configurations — model, mode, system
+prompt, token limit, and parameters — can be saved as named *presets* and
+re-applied from the dropdown, which makes switching between models and use
+cases a single action.
 
 Settings are stored in the browser's `localStorage`, so they persist across
 sessions. Resetting them to the `config.ts` defaults is a matter of deleting
@@ -147,8 +155,8 @@ Reasoning models ("thinking" models) spend tokens on their reasoning before
 writing any text, and those tokens usually count against the token limit even
 though they are not part of the text. If a model produces no text while its
 console log shows a finish reason of `length`, raise the *Max tokens* value,
-or add `"reasoning_effort": "low"` to the parameters to make the backend skip
-the reasoning (supported by Ollama and OpenAI; harmless where unsupported).
+or set the *Reasoning* field to `low` (or `minimal`) to make the backend skip
+the thinking (supported by Ollama and OpenAI; ignored where unsupported).
 
 
 ## Enabling parallel generation

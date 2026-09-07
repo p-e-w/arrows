@@ -108,10 +108,52 @@ panel.innerHTML = `
         <span class="settings-label-text">Max tokens</span>
         <input type="number" name="max-tokens" min="1">
     </label>
+    <div class="settings-section">Parameters</div>
+    <div class="param-grid">
+        <label>
+            <span class="settings-label-text">Temperature</span>
+            <input type="number" name="temperature" step="any" min="0" placeholder="default">
+        </label>
+        <label>
+            <span class="settings-label-text">Top P</span>
+            <input type="number" name="top-p" step="any" min="0" max="1" placeholder="default">
+        </label>
+        <label>
+            <span class="settings-label-text">Top K</span>
+            <input type="number" name="top-k" step="1" min="0" placeholder="default">
+        </label>
+        <label>
+            <span class="settings-label-text">Min P</span>
+            <input type="number" name="min-p" step="any" min="0" max="1" placeholder="default">
+        </label>
+        <label>
+            <span class="settings-label-text">Repeat penalty</span>
+            <input type="number" name="repeat-penalty" step="any" min="0" placeholder="default">
+        </label>
+        <label>
+            <span class="settings-label-text">Reasoning</span>
+            <select name="reasoning-effort">
+                <option value="">Backend default</option>
+                <option value="minimal">minimal</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+            </select>
+        </label>
+    </div>
     <label>
-        <span class="settings-label-text">Parameters (JSON)</span>
-        <textarea name="params" rows="5" spellcheck="false"></textarea>
+        <span class="settings-label-text">Extra parameters (JSON)</span>
+        <textarea name="extra-params" rows="2" spellcheck="false"></textarea>
     </label>
+    <div class="settings-section">Presets</div>
+    <div class="preset-row">
+        <select id="preset-select" title="Load a saved parameter set"></select>
+        <button class="preset-delete" title="Delete the selected preset" disabled>Delete</button>
+    </div>
+    <div class="preset-row">
+        <input type="text" name="preset-name" placeholder="Save current as…" spellcheck="false" autocomplete="off">
+        <button class="preset-save" title="Save the current model, mode, system prompt, token limit, and parameters as a preset">Save</button>
+    </div>
     <div class="settings-status"></div>
 `;
 
@@ -132,13 +174,42 @@ const maxTokensInput = panel.querySelector<HTMLInputElement>("[name='max-tokens'
 const chatCompletionsInput = panel.querySelector<HTMLInputElement>("[name='chat-completions']")!;
 const systemPromptTextarea = panel.querySelector<HTMLTextAreaElement>("[name='system-prompt']")!;
 const systemPromptLabel = systemPromptTextarea.closest("label")!;
-const paramsTextarea = panel.querySelector<HTMLTextAreaElement>("[name='params']")!;
+const parameterInputs: Array<[string, HTMLInputElement]> = [
+    ["temperature", panel.querySelector<HTMLInputElement>("[name='temperature']")!],
+    ["top_p", panel.querySelector<HTMLInputElement>("[name='top-p']")!],
+    ["top_k", panel.querySelector<HTMLInputElement>("[name='top-k']")!],
+    ["min_p", panel.querySelector<HTMLInputElement>("[name='min-p']")!],
+    ["repeat_penalty", panel.querySelector<HTMLInputElement>("[name='repeat-penalty']")!],
+];
+const reasoningEffortSelect = panel.querySelector<HTMLSelectElement>("[name='reasoning-effort']")!;
+const extraParamsTextarea = panel.querySelector<HTMLTextAreaElement>("[name='extra-params']")!;
+const presetSelect = panel.querySelector<HTMLSelectElement>("#preset-select")!;
+const presetDeleteButton = panel.querySelector<HTMLButtonElement>(".preset-delete")!;
+const presetNameInput = panel.querySelector<HTMLInputElement>("[name='preset-name']")!;
+const presetSaveButton = panel.querySelector<HTMLButtonElement>(".preset-save")!;
 const closeButton = panel.querySelector<HTMLButtonElement>(".settings-close")!;
 const statusElement = panel.querySelector<HTMLElement>(".settings-status")!;
 
 let open = false;
 let hideStatusTimeout: number | undefined;
 let refreshModelsToken = 0;
+
+// Saved parameter sets, persisted in localStorage.
+interface Preset {
+    model: string;
+    chatCompletions: boolean;
+    systemPrompt: string;
+    maxTokens: number;
+    params: Record<string, unknown>;
+}
+
+const PRESETS_STORAGE_KEY = "arrows-presets";
+
+// Parameter keys that have their own fields in the settings panel;
+// everything else is handled by the extra parameters JSON field.
+const KNOWN_PARAM_KEYS = ["temperature", "top_p", "top_k", "min_p", "repeat_penalty", "reasoning_effort"];
+
+let presets: Record<string, Preset> = {};
 
 // Models fetched from the server; empty if unavailable.
 let models: string[] = [];
@@ -158,13 +229,107 @@ function showStatus(message: string, isError = false): void {
     }
 }
 
+function loadPresets(): void {
+    presets = {};
+    try {
+        const saved: unknown = JSON.parse(localStorage.getItem(PRESETS_STORAGE_KEY) ?? "{}");
+        if (!isRecord(saved)) {
+            return;
+        }
+        for (const [name, value] of Object.entries(saved)) {
+            if (isRecord(value)
+                && typeof value.model === "string"
+                && typeof value.chatCompletions === "boolean"
+                && typeof value.systemPrompt === "string"
+                && typeof value.maxTokens === "number"
+                && isRecord(value.params)) {
+                presets[name] = {
+                    model: value.model,
+                    chatCompletions: value.chatCompletions,
+                    systemPrompt: value.systemPrompt,
+                    maxTokens: value.maxTokens,
+                    params: value.params,
+                };
+            }
+        }
+    } catch {
+        presets = {};
+    }
+}
+
+function writePresets(): boolean {
+    try {
+        localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function refreshPresetSelect(selectedName?: string): void {
+    presetSelect.replaceChildren();
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Load preset…";
+    presetSelect.append(placeholder);
+    for (const name of Object.keys(presets).sort()) {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        presetSelect.append(option);
+    }
+    presetSelect.value = selectedName !== undefined && selectedName in presets ? selectedName : "";
+    presetDeleteButton.disabled = presetSelect.value === "";
+}
+
+function savePreset(): void {
+    const name = presetNameInput.value.trim();
+    if (name === "") {
+        showStatus("Enter a name for the preset.", true);
+        return;
+    }
+    const newSettings = readInputs();
+    if (newSettings === null) {
+        showStatus("Fix the invalid parameters first.", true);
+        return;
+    }
+    presets[name] = {
+        model: newSettings.model,
+        chatCompletions: newSettings.chatCompletions,
+        systemPrompt: newSettings.systemPrompt,
+        maxTokens: newSettings.maxTokens,
+        params: newSettings.params,
+    };
+    if (!writePresets()) {
+        showStatus("Could not save presets.", true);
+        return;
+    }
+    refreshPresetSelect(name);
+    presetNameInput.value = "";
+    showStatus(`Saved preset "${name}".`);
+}
+
+function populateParameterFields(params: Record<string, unknown>): void {
+    for (const [key, input] of parameterInputs) {
+        input.value = typeof params[key] === "number" ? String(params[key]) : "";
+    }
+    reasoningEffortSelect.value = typeof params.reasoning_effort === "string" ? params.reasoning_effort : "";
+    const extra: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(params)) {
+        if (!KNOWN_PARAM_KEYS.includes(key)) {
+            extra[key] = value;
+        }
+    }
+    extraParamsTextarea.value = Object.keys(extra).length > 0 ? JSON.stringify(extra, null, 4) : "";
+    extraParamsTextarea.classList.remove("invalid");
+}
+
 function populateInputs(): void {
     baseUrlInput.value = settings.baseUrl;
     apiKeyInput.value = settings.apiKey;
     modelInput.value = settings.model;
     maxTokensInput.value = String(settings.maxTokens);
-    paramsTextarea.value = JSON.stringify(settings.params, null, 4);
-    paramsTextarea.classList.remove("invalid");
+    populateParameterFields(settings.params);
     chatCompletionsInput.checked = settings.chatCompletions;
     systemPromptTextarea.value = settings.systemPrompt;
     systemPromptLabel.hidden = !settings.chatCompletions;
@@ -172,14 +337,41 @@ function populateInputs(): void {
     showStatus("");
 }
 
-function readInputs(): Settings | null {
-    let params: unknown;
-    try {
-        params = JSON.parse(paramsTextarea.value);
-    } catch {
-        return null;
+function readParams(): Record<string, unknown> | null {
+    let extra: Record<string, unknown> = {};
+    if (extraParamsTextarea.value.trim() !== "") {
+        try {
+            const parsed: unknown = JSON.parse(extraParamsTextarea.value);
+            if (!isRecord(parsed)) {
+                return null;
+            }
+            extra = parsed;
+        } catch {
+            return null;
+        }
     }
-    if (!isRecord(params)) {
+    const params: Record<string, unknown> = { ...extra };
+    for (const [key, input] of parameterInputs) {
+        // An empty field means that the parameter is not sent at all,
+        // so the backend uses its own default.
+        if (input.value.trim() === "") {
+            continue;
+        }
+        const value = Number(input.value);
+        if (!Number.isFinite(value)) {
+            return null;
+        }
+        params[key] = value;
+    }
+    if (reasoningEffortSelect.value !== "") {
+        params.reasoning_effort = reasoningEffortSelect.value;
+    }
+    return params;
+}
+
+function readInputs(): Settings | null {
+    const params = readParams();
+    if (params === null) {
         return null;
     }
     const maxTokens = Number(maxTokensInput.value);
@@ -197,11 +389,11 @@ function readInputs(): Settings | null {
 function commit(): boolean {
     const newSettings = readInputs();
     if (newSettings === null) {
-        paramsTextarea.classList.add("invalid");
-        showStatus("Parameters must be a JSON object.", true);
+        extraParamsTextarea.classList.add("invalid");
+        showStatus("Check the parameters (extra parameters must be a JSON object).", true);
         return false;
     }
-    paramsTextarea.classList.remove("invalid");
+    extraParamsTextarea.classList.remove("invalid");
     Object.assign(settings, newSettings);
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
@@ -387,11 +579,63 @@ chatCompletionsInput.addEventListener("change", () => {
     systemPromptLabel.hidden = !chatCompletionsInput.checked;
 });
 
-for (const input of [apiKeyInput, modelInput, maxTokensInput, paramsTextarea, systemPromptTextarea]) {
+for (const input of [
+    apiKeyInput,
+    modelInput,
+    maxTokensInput,
+    systemPromptTextarea,
+    extraParamsTextarea,
+    reasoningEffortSelect,
+    ...parameterInputs.map(([, input]) => input),
+]) {
     input.addEventListener("change", () => {
         commit();
     });
 }
+
+presetSelect.addEventListener("change", () => {
+    const name = presetSelect.value;
+    presetDeleteButton.disabled = name === "";
+    if (name === "" || !(name in presets)) {
+        return;
+    }
+    const preset = presets[name]!;
+    modelInput.value = preset.model;
+    chatCompletionsInput.checked = preset.chatCompletions;
+    systemPromptLabel.hidden = !preset.chatCompletions;
+    systemPromptTextarea.value = preset.systemPrompt;
+    maxTokensInput.value = String(preset.maxTokens);
+    populateParameterFields(preset.params);
+    commit();
+    showStatus(`Loaded preset "${name}".`);
+});
+
+presetDeleteButton.addEventListener("click", () => {
+    const name = presetSelect.value;
+    if (name === "" || !(name in presets)) {
+        return;
+    }
+    delete presets[name];
+    if (!writePresets()) {
+        showStatus("Could not save presets.", true);
+        return;
+    }
+    refreshPresetSelect();
+    showStatus(`Deleted preset "${name}".`);
+});
+
+presetSaveButton.addEventListener("click", () => {
+    savePreset();
+});
+
+presetNameInput.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+        // Save the preset instead of closing the panel.
+        event.preventDefault();
+        event.stopPropagation();
+        savePreset();
+    }
+});
 
 modelInput.addEventListener("focus", () => {
     showModelOptions(false);
@@ -445,3 +689,6 @@ panel.addEventListener("keydown", event => {
         closeSettings();
     }
 });
+
+loadPresets();
+refreshPresetSelect();

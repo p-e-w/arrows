@@ -182,7 +182,7 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
             (finishReason ? ` (finish reason: ${finishReason})` : "") +
             (reasoningLength > 0
                 ? ` — the model spent its entire token budget on reasoning (${reasoningLength} chars).` +
-                  " Increase Max tokens, or add \"reasoning_effort\": \"low\" to the parameters" +
+                  " Increase Max tokens, or set the Reasoning field to \"low\"" +
                   " to make the backend skip the thinking."
                 : " — the model probably returned an immediate end-of-generation token" +
                   (settings.chatCompletions

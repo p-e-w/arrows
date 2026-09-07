@@ -36,6 +36,7 @@
     padding: 1em 1.25em;
     overflow-y: auto;
     font-family: system-ui;
+    color-scheme: dark;
     color: #ddf;
     background-color: #004;
     border-left: 1px solid rgba(221, 221, 255, 0.25);
@@ -77,6 +78,7 @@
 }
 
 .settings-panel input,
+.settings-panel select,
 .settings-panel textarea,
 .settings-panel button {
     box-sizing: border-box;
@@ -89,6 +91,7 @@
 }
 
 .settings-panel input,
+.settings-panel select,
 .settings-panel textarea {
     width: 100%;
     padding: 0.35em 0.5em;
@@ -155,6 +158,39 @@
 .model-option.none {
     opacity: 0.6;
     cursor: default;
+}
+
+.settings-section {
+    margin: 1.4em 0 0.8em;
+    padding-top: 0.8em;
+    border-top: 1px solid rgba(221, 221, 255, 0.15);
+    font-size: 0.8em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.6;
+}
+
+.param-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 0.75em;
+}
+
+.param-grid label {
+    margin-bottom: 0.9em;
+}
+
+.preset-row {
+    display: flex;
+    gap: 0.4em;
+    margin-bottom: 0.8em;
+}
+
+.preset-row select,
+.preset-row input {
+    flex: 1;
+    min-width: 0;
+    width: auto;
 }
 
 .settings-panel label.settings-check {
