@@ -33,6 +33,16 @@ let completionCallback: (() => Promise<void>) | null;
 // Created anew for every generation, so that settings changes take effect immediately.
 let client: OpenAI;
 
+// Set the "arrows-debug" key in localStorage and reload the page to enable
+// detailed logging of prompts and streaming chunks in the browser console.
+const debug = (() => {
+    try {
+        return localStorage.getItem("arrows-debug") !== null;
+    } catch {
+        return false;
+    }
+})();
+
 function scrollEmbedIntoView() {
     scrollIntoView(embedElement, { scrollMode: "if-needed", block: "end" });
 }
@@ -51,6 +61,13 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
         ...settings.params,
     };
 
+    const paneName = pane.classList.contains("left") ? "left" : "right";
+
+    console.info(`[arrows] ${paneName}: requesting ${settings.maxTokens} tokens from ${settings.model}`);
+    if (debug) {
+        console.debug(`[arrows] ${paneName}: prompt:`, JSON.stringify(prompt), "params:", params);
+    }
+
     const controller = new AbortController();
     controllers.push(controller);
 
@@ -59,14 +76,28 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
     let text = "";
     let startFound = false;
     let isNewParagraph = false;
+    let finishReason: string | null = null;
+    let stoppedAtParagraphEnd = false;
 
     for await (const chunk of stream) {
         let newText: string;
         if (chunk.hasOwnProperty("choices")) {
+            if (chunk.choices[0].finish_reason !== null) {
+                finishReason = chunk.choices[0].finish_reason;
+            }
             newText = chunk.choices[0].text;
         } else {
             // @ts-ignore: llama.cpp
             newText = chunk.content;
+            // @ts-ignore: llama.cpp
+            if (chunk.stop_type) {
+                // @ts-ignore: llama.cpp
+                finishReason = chunk.stop_type;
+            }
+        }
+
+        if (debug) {
+            console.debug(`[arrows] ${paneName} chunk:`, chunk);
         }
 
         if (!startFound) {
@@ -105,14 +136,23 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
 
         // Stop at end of paragraph.
         if (lines.length > 1) {
+            stoppedAtParagraphEnd = true;
             break;
         }
     }
 
     if (text.length === 0) {
+        console.warn(`[arrows] ${paneName}: no text produced` +
+            (finishReason ? ` (finish reason: ${finishReason})` : "") +
+            " — the model probably returned an immediate end-of-generation token." +
+            " Strongly chat-tuned models often do this on the raw completion endpoint.");
         pane.textContent = "[empty]";
         pane.classList.add("empty");
         scrollEmbedIntoView();
+    } else {
+        console.info(`[arrows] ${paneName}: generated ${text.length} chars` +
+            (finishReason ? ` (finish reason: ${finishReason})` : "") +
+            (stoppedAtParagraphEnd ? " (stopped at end of paragraph)" : ""));
     }
 
     return (isNewParagraph ? "\n" : "") + text;
@@ -169,7 +209,13 @@ async function generate() {
         if (result.status === "fulfilled") {
             return result.value;
         } else {
-            panes[i].textContent = result.reason;
+            const reason = result.reason;
+            if (reason instanceof Error && reason.name === "AbortError") {
+                console.info(`[arrows] stream aborted`);
+            } else {
+                console.error(`[arrows] stream failed:`, reason);
+            }
+            panes[i].textContent = reason;
             panes[i].classList.add("error");
             scrollEmbedIntoView();
             return "";

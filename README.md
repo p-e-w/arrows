@@ -116,6 +116,30 @@ type, and can be navigated with the arrow keys. This requires the server to
 implement the OpenAI-compatible `/v1/models` endpoint.
 
 
+## Troubleshooting
+
+Arrows logs its LLM traffic to the browser console (developer tools → console):
+one line per request, and one line per finished stream, including the number
+of characters generated and the reason generation stopped. To also log the
+full prompt and every streaming chunk, enable debug logging with
+
+    localStorage.setItem("arrows-debug", "1")
+
+in the browser console and reload the page (undo with
+`localStorage.removeItem("arrows-debug")`).
+
+Check the backend server's own logs as well. For example, for Ollama run
+`journalctl -u ollama -f` (Linux), `~/.ollama/logs/server.log` (macOS), or
+`docker logs <container>` (Docker).
+
+Note that Arrows sends the document as a raw *text completion* prompt
+(`/v1/completions`). Strongly instruction- or chat-tuned models often behave
+poorly on such prompts — returning nothing at all (an immediate
+end-of-generation token) or degenerating into repetition — because the backend
+does not apply their chat template to raw completion requests. Models trained
+for plain text continuation work best.
+
+
 ## Enabling parallel generation
 
 Arrows has a fully asynchronous architecture and is capable of streaming
