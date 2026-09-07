@@ -11,7 +11,7 @@ import scrollIntoView from "scroll-into-view-if-needed";
 
 import ParagraphClipboard from "./clipboard.ts";
 import SplitEmbed from "./embed.ts";
-import { createClient, settings, isSettingsOpen, closeSettings, toggleSettings } from "./settings.ts";
+import { createClient, settings, isSettingsOpen, closeSettings, toggleSettings, onSettingsClose } from "./settings.ts";
 
 enum State {
     Editing,
@@ -216,6 +216,14 @@ const quill = new Quill("#editor", {
             },
         },
     },
+});
+
+// Return focus to the editor when the settings panel is closed, so that
+// writing (and Ctrl+Enter) can resume immediately.
+onSettingsClose(() => {
+    if (state === State.Editing) {
+        quill.focus();
+    }
 });
 
 function deleteEmbed() {

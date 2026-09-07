@@ -120,8 +120,41 @@
 }
 
 .model-row {
+    position: relative;
     display: flex;
     gap: 0.4em;
+}
+
+.model-options {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    z-index: 10;
+    max-height: 12em;
+    overflow-y: auto;
+    background-color: #004;
+    border: 1px solid rgba(221, 221, 255, 0.3);
+    border-radius: 4px;
+    box-shadow: 0 0.3em 1em rgba(0, 0, 0, 0.5);
+}
+
+.model-option {
+    padding: 0.3em 0.5em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.model-option.highlighted,
+.model-option:hover {
+    background-color: rgba(221, 221, 255, 0.15);
+}
+
+.model-option.none {
+    opacity: 0.6;
+    cursor: default;
 }
 
 .model-row input {

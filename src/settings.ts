@@ -83,11 +83,11 @@ panel.innerHTML = `
     </label>
     <label>
         <span class="settings-label-text">Model</span>
-        <span class="model-row">
-            <input type="text" name="model" list="model-list" spellcheck="false" autocomplete="off">
+        <div class="model-row">
+            <input type="text" name="model" spellcheck="false" autocomplete="off">
             <button class="settings-refresh" title="Fetch the list of models from the server">&#8635;</button>
-        </span>
-        <datalist id="model-list"></datalist>
+            <div class="model-options" hidden></div>
+        </div>
         <div class="model-status"></div>
     </label>
     <label>
@@ -111,7 +111,7 @@ document.body.append(settingsButton, panel);
 const baseUrlInput = panel.querySelector<HTMLInputElement>("[name='base-url']")!;
 const apiKeyInput = panel.querySelector<HTMLInputElement>("[name='api-key']")!;
 const modelInput = panel.querySelector<HTMLInputElement>("[name='model']")!;
-const modelDatalist = panel.querySelector<HTMLDataListElement>("#model-list")!;
+const modelOptionsElement = panel.querySelector<HTMLElement>(".model-options")!;
 const refreshButton = panel.querySelector<HTMLButtonElement>(".settings-refresh")!;
 const modelStatusElement = panel.querySelector<HTMLElement>(".model-status")!;
 const maxTokensInput = panel.querySelector<HTMLInputElement>("[name='max-tokens']")!;
@@ -122,6 +122,12 @@ const statusElement = panel.querySelector<HTMLElement>(".settings-status")!;
 let open = false;
 let hideStatusTimeout: number | undefined;
 let refreshModelsToken = 0;
+
+// Models fetched from the server; empty if unavailable.
+let models: string[] = [];
+let filteredModels: string[] = [];
+let modelOptionsOpen = false;
+let highlightedIndex = -1;
 
 function showStatus(message: string, isError = false): void {
     window.clearTimeout(hideStatusTimeout);
@@ -184,6 +190,75 @@ function commit(): boolean {
     return true;
 }
 
+function updateHighlight(): void {
+    for (let index = 0; index < filteredModels.length; index++) {
+        const option = modelOptionsElement.children[index] as HTMLElement;
+        option.classList.toggle("highlighted", index === highlightedIndex);
+        if (index === highlightedIndex) {
+            // Scroll manually, so that the enclosing panel is not scrolled.
+            const optionTop = option.offsetTop;
+            const optionBottom = optionTop + option.offsetHeight;
+            if (optionTop < modelOptionsElement.scrollTop) {
+                modelOptionsElement.scrollTop = optionTop;
+            } else if (optionBottom > modelOptionsElement.scrollTop + modelOptionsElement.clientHeight) {
+                modelOptionsElement.scrollTop = optionBottom - modelOptionsElement.clientHeight;
+            }
+        }
+    }
+}
+
+function updateModelOptions(): void {
+    const query = modelInput.value.trim().toLowerCase();
+    filteredModels = models.filter(model => model.toLowerCase().includes(query));
+    if (highlightedIndex >= filteredModels.length) {
+        highlightedIndex = filteredModels.length - 1;
+    }
+    modelOptionsElement.replaceChildren(...filteredModels.map(model => {
+        const option = document.createElement("div");
+        option.className = "model-option";
+        option.textContent = model;
+        // Preventing the default action keeps the focus in the model field,
+        // so the blur that would precede the click does not close the list.
+        option.addEventListener("mousedown", event => {
+            event.preventDefault();
+        });
+        option.addEventListener("click", () => {
+            selectModel(model);
+        });
+        return option;
+    }));
+    if (filteredModels.length === 0) {
+        const noMatch = document.createElement("div");
+        noMatch.className = "model-option none";
+        noMatch.textContent = "No matching models";
+        modelOptionsElement.append(noMatch);
+    }
+    updateHighlight();
+}
+
+function showModelOptions(highlightFirst: boolean): void {
+    if (models.length === 0) {
+        return;
+    }
+    modelOptionsOpen = true;
+    modelOptionsElement.hidden = false;
+    highlightedIndex = highlightFirst ? 0 : -1;
+    updateModelOptions();
+}
+
+function closeModelOptions(): void {
+    modelOptionsOpen = false;
+    modelOptionsElement.hidden = true;
+    modelOptionsElement.replaceChildren();
+    filteredModels = [];
+}
+
+function selectModel(model: string): void {
+    modelInput.value = model;
+    closeModelOptions();
+    closeSettings();
+}
+
 async function refreshModels(): Promise<void> {
     const token = ++refreshModelsToken;
     modelStatusElement.textContent = "Fetching models…";
@@ -204,18 +279,19 @@ async function refreshModels(): Promise<void> {
             // A newer request has been started in the meantime.
             return;
         }
-        modelDatalist.replaceChildren(...ids.map(id => {
-            const option = document.createElement("option");
-            option.value = id;
-            return option;
-        }));
+        models = ids;
         modelStatusElement.textContent = ids.length === 1 ? "1 model available" : `${ids.length} models available`;
+        // Show the list immediately if the model field has focus.
+        if (ids.length > 0 && document.activeElement === modelInput) {
+            showModelOptions(false);
+        }
     } catch {
         if (token !== refreshModelsToken) {
             // A newer request has been started in the meantime.
             return;
         }
-        modelDatalist.replaceChildren();
+        models = [];
+        closeModelOptions();
         modelStatusElement.textContent = "Could not fetch model list (you can still type a model name).";
     }
 }
@@ -234,6 +310,12 @@ export function openSettings(): void {
     void refreshModels();
 }
 
+const closeCallbacks: (() => void)[] = [];
+
+export function onSettingsClose(callback: () => void): void {
+    closeCallbacks.push(callback);
+}
+
 export function closeSettings(): boolean {
     if (!commit()) {
         // Invalid settings (e.g. parameters are not a JSON object);
@@ -242,6 +324,14 @@ export function closeSettings(): boolean {
     }
     panel.classList.remove("open");
     open = false;
+    // Move the focus out of the panel, which is about to become invisible.
+    if (panel.contains(document.activeElement) && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+    }
+    closeModelOptions();
+    for (const callback of closeCallbacks) {
+        callback();
+    }
     return true;
 }
 
@@ -275,6 +365,51 @@ for (const input of [apiKeyInput, modelInput, maxTokensInput, paramsTextarea]) {
         commit();
     });
 }
+
+modelInput.addEventListener("focus", () => {
+    showModelOptions(false);
+});
+
+modelInput.addEventListener("click", () => {
+    showModelOptions(false);
+});
+
+modelInput.addEventListener("input", () => {
+    showModelOptions(true);
+});
+
+modelInput.addEventListener("blur", () => {
+    closeModelOptions();
+});
+
+modelInput.addEventListener("keydown", event => {
+    if (event.key === "ArrowDown" && filteredModels.length > 0) {
+        event.preventDefault();
+        if (!modelOptionsOpen) {
+            showModelOptions(true);
+        } else if (highlightedIndex < filteredModels.length - 1) {
+            highlightedIndex++;
+            updateHighlight();
+        }
+    } else if (event.key === "ArrowUp" && modelOptionsOpen && highlightedIndex >= 0) {
+        event.preventDefault();
+        highlightedIndex = highlightedIndex === 0 ? -1 : highlightedIndex - 1;
+        updateHighlight();
+    } else if (event.key === "Escape" && modelOptionsOpen) {
+        // The first Escape only closes the model list; the panel stays open.
+        event.preventDefault();
+        event.stopPropagation();
+        closeModelOptions();
+    } else if (event.key === "Enter" && modelOptionsOpen) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (highlightedIndex >= 0 && highlightedIndex < filteredModels.length) {
+            selectModel(filteredModels[highlightedIndex]!);
+        } else {
+            closeModelOptions();
+        }
+    }
+});
 
 // Enter in a single-line field commits the settings and closes the panel.
 panel.addEventListener("keydown", event => {

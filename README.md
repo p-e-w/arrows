@@ -109,9 +109,11 @@ Settings are stored in the browser's `localStorage`, so they persist across
 sessions. Resetting them to the `config.ts` defaults is a matter of deleting
 the stored values. Changes take effect from the next generation onward.
 
-The ↻ button next to the model field fetches the list of models offered by the
-server, so that model names can be selected rather than typed. This requires
-the server to implement the OpenAI-compatible `/v1/models` endpoint.
+The model field shows a dropdown with the models offered by the server, so
+that model names can be selected rather than typed. The list is fetched when
+the panel is opened, and can be refreshed with the ↻ button; it filters as you
+type, and can be navigated with the arrow keys. This requires the server to
+implement the OpenAI-compatible `/v1/models` endpoint.
 
 
 ## Enabling parallel generation
