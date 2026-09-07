@@ -1,5 +1,33 @@
 # Arrows
 
+> **This is a modified fork.** [Arrows](https://github.com/p-e-w/arrows) was
+> created by Philipp Emanuel Weidmann around a strict *zero UI* philosophy:
+> no buttons, labels, or menus — only the text and six keyboard shortcuts.
+> This fork, maintained at
+> [ChrisCantwell/arrows](https://github.com/ChrisCantwell/arrows),
+> intentionally relaxes that principle for personal use, because its goals
+> differ from upstream's: it adds a settings panel for changing the model,
+> endpoint, generation mode, and parameters at runtime (see
+> [Settings panel](#settings-panel) below).
+>
+> Changes in this fork:
+>
+> - Settings panel with a model dropdown fed by the server's `/v1/models` list
+> - Chat completions mode with an editable system prompt (for chat-tuned models)
+> - Sampling parameters as individual fields, with an escape hatch for
+>   provider-specific extras
+> - Named presets (model, mode, system prompt, token limit, parameters) for
+>   one-click switching between models and use cases
+> - Console logging for troubleshooting (see [Troubleshooting](#troubleshooting))
+>
+> These changes deliberately deviate from the upstream design philosophy and
+> are therefore not proposed for inclusion upstream.
+>
+> **AI-assisted development:** the modifications in this fork were designed
+> and implemented with the assistance of AI coding tools, under human
+> direction and review. They are released under the same
+> [AGPL-3.0-or-later](LICENSE) as the original project.
+
 Arrows is an experimental frontend for creative writing with large language models (LLMs).
 
 https://github.com/p-e-w/arrows/assets/2702526/a3f21e54-9dbd-43a1-9b2a-ea8873e9d5ec
@@ -57,10 +85,10 @@ Return to normal editing.
 
 ## Installation
 
-If you have Git and Node.js installed, installing Arrows is straightforward:
+If you have Git and Node.js installed, installing this fork is straightforward:
 
 ```
-git clone https://github.com/p-e-w/arrows.git
+git clone https://github.com/ChrisCantwell/arrows.git
 cd arrows
 npm install
 ```
