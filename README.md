@@ -143,6 +143,13 @@ then sent to the chat completions endpoint together with the configurable
 system prompt. Models trained for plain text continuation work best with the
 raw endpoint.
 
+Reasoning models ("thinking" models) spend tokens on their reasoning before
+writing any text, and those tokens usually count against the token limit even
+though they are not part of the text. If a model produces no text while its
+console log shows a finish reason of `length`, raise the *Max tokens* value,
+or add `"reasoning_effort": "low"` to the parameters to make the backend skip
+the reasoning (supported by Ollama and OpenAI; harmless where unsupported).
+
 
 ## Enabling parallel generation
 

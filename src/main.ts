@@ -95,6 +95,7 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
     let isNewParagraph = false;
     let finishReason: string | null = null;
     let stoppedAtParagraphEnd = false;
+    let reasoningLength = 0;
 
     for await (const chunk of stream) {
         let newText: string;
@@ -109,6 +110,17 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
             } else {
                 // Chat completion chunk.
                 newText = choice.delta.content ?? "";
+                // Some providers (e.g. Ollama for thinking models) stream the
+                // model's reasoning in a separate field. It is not part of the
+                // text, but it usually counts against the token budget.
+                const reasoning = (choice.delta as { reasoning?: string | null }).reasoning ??
+                    (choice.delta as { reasoning_content?: string | null }).reasoning_content;
+                if (reasoning) {
+                    reasoningLength += reasoning.length;
+                    if (debug) {
+                        console.debug(`[arrows] ${paneName} reasoning:`, reasoning);
+                    }
+                }
             }
         } else {
             // @ts-ignore: llama.cpp
@@ -168,15 +180,20 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
     if (text.length === 0) {
         console.warn(`[arrows] ${paneName}: no text produced` +
             (finishReason ? ` (finish reason: ${finishReason})` : "") +
-            " — the model probably returned an immediate end-of-generation token" +
-            (settings.chatCompletions
-                ? "."
-                : " (chat-tuned models often do this; try enabling chat completions in the settings)."));
+            (reasoningLength > 0
+                ? ` — the model spent its entire token budget on reasoning (${reasoningLength} chars).` +
+                  " Increase Max tokens, or add \"reasoning_effort\": \"low\" to the parameters" +
+                  " to make the backend skip the thinking."
+                : " — the model probably returned an immediate end-of-generation token" +
+                  (settings.chatCompletions
+                      ? "."
+                      : " (chat-tuned models often do this; try enabling chat completions in the settings).")));
         pane.textContent = "[empty]";
         pane.classList.add("empty");
         scrollEmbedIntoView();
     } else {
         console.info(`[arrows] ${paneName}: generated ${text.length} chars` +
+            (reasoningLength > 0 ? ` (plus ${reasoningLength} chars of reasoning)` : "") +
             (finishReason ? ` (finish reason: ${finishReason})` : "") +
             (stoppedAtParagraphEnd ? " (stopped at end of paragraph)" : ""));
     }
