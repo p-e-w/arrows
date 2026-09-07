@@ -11,7 +11,7 @@ import scrollIntoView from "scroll-into-view-if-needed";
 
 import ParagraphClipboard from "./clipboard.ts";
 import SplitEmbed from "./embed.ts";
-import { BASE_URL, API_KEY, MODEL, MAX_TOKENS, PARAMS } from "./config.ts";
+import { createClient, settings, isSettingsOpen, closeSettings, toggleSettings } from "./settings.ts";
 
 enum State {
     Editing,
@@ -30,11 +30,8 @@ let choices: string[];
 let controllers: AbortController[];
 let completionCallback: (() => Promise<void>) | null;
 
-const client = new OpenAI({
-    baseURL: BASE_URL,
-    apiKey: API_KEY,
-    dangerouslyAllowBrowser: true,
-});
+// Created anew for every generation, so that settings changes take effect immediately.
+let client: OpenAI;
 
 function scrollEmbedIntoView() {
     scrollIntoView(embedElement, { scrollMode: "if-needed", block: "end" });
@@ -44,14 +41,14 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
     const params: OpenAI.CompletionCreateParamsStreaming = {
         stream: true,
         // This parameter is ignored by most OpenAI-compatible local API providers.
-        model: MODEL,
+        model: settings.model,
         prompt: prompt,
-        max_tokens: MAX_TOKENS,
+        max_tokens: settings.maxTokens,
         // @ts-ignore: llama.cpp
-        n_predict: MAX_TOKENS,
+        n_predict: settings.maxTokens,
         // @ts-ignore: llama.cpp
         cache_prompt: true,
-        ...PARAMS,
+        ...settings.params,
     };
 
     const controller = new AbortController();
@@ -139,6 +136,9 @@ async function generate() {
     state = State.Generating;
     quill.disable();
 
+    // New client on every generation, so that settings changes take effect.
+    client = createClient();
+
     const prompt = quill.getText(0, cursorIndex);
 
     // `line.length()` includes the line break.
@@ -202,6 +202,10 @@ const quill = new Quill("#editor", {
                     shortKey: true,
                     collapsed: true,
                     handler: async () => {
+                        if (isSettingsOpen()) {
+                            return false;
+                        }
+
                         if (state !== State.Editing) {
                             return true;
                         }
@@ -235,6 +239,22 @@ async function cancelGeneration(callback: () => Promise<void>) {
 // because the module's bindings are disabled when the editor is disabled,
 // which is the case while generating text.
 document.addEventListener("keydown", async event => {
+    // Ctrl/Cmd + Comma toggles the settings panel, in any state.
+    if (event.key === "," && (event.ctrlKey || event.metaKey) && !event.altKey) {
+        event.preventDefault();
+        toggleSettings();
+        return;
+    }
+
+    // While the settings panel is open, all other shortcuts are disabled.
+    if (isSettingsOpen()) {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            closeSettings();
+        }
+        return;
+    }
+
     if (state === State.Editing || state === State.Transitioning || state === State.Canceling) {
         return;
     }

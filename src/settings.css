@@ -1,0 +1,152 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ * Copyright (C) 2024  Philipp Emanuel Weidmann <pew@worldwidemann.com>
+ */
+
+.settings-button {
+    position: fixed;
+    top: 0.4em;
+    right: 0.6em;
+    z-index: 100;
+    padding: 0.15em 0.35em;
+    font-family: system-ui;
+    font-size: 1.25em;
+    line-height: 1;
+    color: #ddf;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    opacity: 0.35;
+    cursor: pointer;
+}
+
+.settings-button:hover,
+.settings-button:focus-visible {
+    opacity: 1;
+}
+
+.settings-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 200;
+    box-sizing: border-box;
+    width: min(22em, 90vw);
+    padding: 1em 1.25em;
+    overflow-y: auto;
+    font-family: system-ui;
+    color: #ddf;
+    background-color: #004;
+    border-left: 1px solid rgba(221, 221, 255, 0.25);
+    box-shadow: -0.5em 0 2em rgba(0, 0, 0, 0.4);
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform 0.3s ease, visibility 0s linear 0.3s;
+}
+
+.settings-panel.open {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.3s ease, visibility 0s;
+}
+
+.settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1em;
+}
+
+.settings-header button {
+    font-size: 1.2em;
+    line-height: 1;
+    padding: 0.1em 0.4em;
+}
+
+.settings-panel label {
+    display: block;
+    margin-bottom: 1.1em;
+    font-size: 0.9em;
+}
+
+.settings-label-text {
+    display: block;
+    margin-bottom: 0.3em;
+    opacity: 0.65;
+}
+
+.settings-panel input,
+.settings-panel textarea,
+.settings-panel button {
+    box-sizing: border-box;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    background-color: rgba(221, 221, 255, 0.07);
+    border: 1px solid rgba(221, 221, 255, 0.3);
+    border-radius: 4px;
+}
+
+.settings-panel input,
+.settings-panel textarea {
+    width: 100%;
+    padding: 0.35em 0.5em;
+}
+
+.settings-panel textarea {
+    resize: vertical;
+    font-family: ui-monospace, monospace;
+    font-size: 0.9em;
+}
+
+.settings-panel input:focus,
+.settings-panel textarea:focus {
+    outline: none;
+    border-color: rgba(221, 221, 255, 0.7);
+}
+
+.settings-panel textarea.invalid {
+    border-color: #f88;
+}
+
+.settings-panel button {
+    padding: 0.35em 0.6em;
+    cursor: pointer;
+}
+
+.settings-panel button:hover {
+    background-color: rgba(221, 221, 255, 0.15);
+}
+
+.model-row {
+    display: flex;
+    gap: 0.4em;
+}
+
+.model-row input {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+}
+
+.model-status {
+    margin-top: 0.3em;
+    font-size: 0.85em;
+    opacity: 0.55;
+}
+
+.settings-status {
+    min-height: 1.3em;
+    font-size: 0.85em;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.settings-status.visible {
+    opacity: 0.7;
+}
+
+.settings-status.error {
+    color: #f88;
+}

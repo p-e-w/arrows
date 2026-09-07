@@ -93,6 +93,26 @@ OpenAI-compatible completion endpoint. Some local providers ignore it when a
 model is already loaded, but it is required by providers that expose multiple
 models.
 
+The values in `config.ts` serve as *defaults*: they can be overridden at
+runtime in the settings panel (see below).
+
+
+## Settings panel
+
+The base URL, API key, model, token limit, and generation parameters can be
+changed at runtime in the settings panel, without editing any files. Open the
+panel with the ⚙ button in the top right corner, or with
+<kbd>Ctrl</kbd>+<kbd>,</kbd> (<kbd>⌘</kbd>+<kbd>,</kbd> on macOS); close it
+with <kbd>Escape</kbd>, the &times; button, or <kbd>Enter</kbd> in a text field.
+
+Settings are stored in the browser's `localStorage`, so they persist across
+sessions. Resetting them to the `config.ts` defaults is a matter of deleting
+the stored values. Changes take effect from the next generation onward.
+
+The ↻ button next to the model field fetches the list of models offered by the
+server, so that model names can be selected rather than typed. This requires
+the server to implement the OpenAI-compatible `/v1/models` endpoint.
+
 
 ## Enabling parallel generation
 
