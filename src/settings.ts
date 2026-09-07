@@ -5,7 +5,7 @@ import "./settings.css";
 
 import OpenAI from "openai";
 
-import { BASE_URL, API_KEY, MODEL, MAX_TOKENS, PARAMS } from "./config.ts";
+import { BASE_URL, API_KEY, MODEL, MAX_TOKENS, PARAMS, CHAT_COMPLETIONS, SYSTEM_PROMPT } from "./config.ts";
 
 export interface Settings {
     baseUrl: string;
@@ -13,6 +13,8 @@ export interface Settings {
     model: string;
     maxTokens: number;
     params: Record<string, unknown>;
+    chatCompletions: boolean;
+    systemPrompt: string;
 }
 
 const STORAGE_KEY = "arrows-settings";
@@ -23,6 +25,8 @@ const defaultSettings: Settings = {
     model: MODEL,
     maxTokens: MAX_TOKENS,
     params: { ...PARAMS },
+    chatCompletions: CHAT_COMPLETIONS,
+    systemPrompt: SYSTEM_PROMPT,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -45,6 +49,8 @@ function loadSettings(): Settings {
             model: typeof saved.model === "string" ? saved.model : defaultSettings.model,
             maxTokens: typeof saved.maxTokens === "number" && Number.isFinite(saved.maxTokens) ? saved.maxTokens : defaultSettings.maxTokens,
             params: isRecord(saved.params) ? saved.params : { ...defaultSettings.params },
+            chatCompletions: typeof saved.chatCompletions === "boolean" ? saved.chatCompletions : defaultSettings.chatCompletions,
+            systemPrompt: typeof saved.systemPrompt === "string" ? saved.systemPrompt : defaultSettings.systemPrompt,
         };
     } catch {
         return { ...defaultSettings };
@@ -90,6 +96,14 @@ panel.innerHTML = `
         </div>
         <div class="model-status"></div>
     </label>
+    <label class="settings-check">
+        <input type="checkbox" name="chat-completions">
+        <span>Chat completions (for chat-tuned models)</span>
+    </label>
+    <label>
+        <span class="settings-label-text">System prompt (chat completions)</span>
+        <textarea name="system-prompt" rows="4" spellcheck="false"></textarea>
+    </label>
     <label>
         <span class="settings-label-text">Max tokens</span>
         <input type="number" name="max-tokens" min="1">
@@ -115,6 +129,9 @@ const modelOptionsElement = panel.querySelector<HTMLElement>(".model-options")!;
 const refreshButton = panel.querySelector<HTMLButtonElement>(".settings-refresh")!;
 const modelStatusElement = panel.querySelector<HTMLElement>(".model-status")!;
 const maxTokensInput = panel.querySelector<HTMLInputElement>("[name='max-tokens']")!;
+const chatCompletionsInput = panel.querySelector<HTMLInputElement>("[name='chat-completions']")!;
+const systemPromptTextarea = panel.querySelector<HTMLTextAreaElement>("[name='system-prompt']")!;
+const systemPromptLabel = systemPromptTextarea.closest("label")!;
 const paramsTextarea = panel.querySelector<HTMLTextAreaElement>("[name='params']")!;
 const closeButton = panel.querySelector<HTMLButtonElement>(".settings-close")!;
 const statusElement = panel.querySelector<HTMLElement>(".settings-status")!;
@@ -148,6 +165,9 @@ function populateInputs(): void {
     maxTokensInput.value = String(settings.maxTokens);
     paramsTextarea.value = JSON.stringify(settings.params, null, 4);
     paramsTextarea.classList.remove("invalid");
+    chatCompletionsInput.checked = settings.chatCompletions;
+    systemPromptTextarea.value = settings.systemPrompt;
+    systemPromptLabel.hidden = !settings.chatCompletions;
     modelStatusElement.textContent = "";
     showStatus("");
 }
@@ -169,6 +189,8 @@ function readInputs(): Settings | null {
         model: modelInput.value.trim(),
         maxTokens: Number.isFinite(maxTokens) && maxTokens >= 1 ? maxTokens : defaultSettings.maxTokens,
         params,
+        chatCompletions: chatCompletionsInput.checked,
+        systemPrompt: systemPromptTextarea.value,
     };
 }
 
@@ -360,7 +382,12 @@ baseUrlInput.addEventListener("change", () => {
     void refreshModels();
 });
 
-for (const input of [apiKeyInput, modelInput, maxTokensInput, paramsTextarea]) {
+chatCompletionsInput.addEventListener("change", () => {
+    commit();
+    systemPromptLabel.hidden = !chatCompletionsInput.checked;
+});
+
+for (const input of [apiKeyInput, modelInput, maxTokensInput, paramsTextarea, systemPromptTextarea]) {
     input.addEventListener("change", () => {
         commit();
     });

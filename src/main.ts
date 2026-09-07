@@ -48,7 +48,24 @@ function scrollEmbedIntoView() {
 }
 
 async function streamText(prompt: string, pane: Element): Promise<string> {
-    const params: OpenAI.CompletionCreateParamsStreaming = {
+    const paneName = pane.classList.contains("left") ? "left" : "right";
+
+    console.info(`[arrows] ${paneName}: requesting ${settings.maxTokens} tokens from ${settings.model}` +
+        (settings.chatCompletions ? " (chat)" : ""));
+    if (debug) {
+        console.debug(`[arrows] ${paneName}: prompt:`, JSON.stringify(prompt),
+            "system prompt:", settings.systemPrompt, "params:", settings.params);
+    }
+
+    const controller = new AbortController();
+    controllers.push(controller);
+
+    const messages: OpenAI.ChatCompletionMessageParam[] = [
+        { role: "system", content: settings.systemPrompt },
+        { role: "user", content: prompt },
+    ];
+
+    const completionParams: OpenAI.CompletionCreateParamsStreaming = {
         stream: true,
         // This parameter is ignored by most OpenAI-compatible local API providers.
         model: settings.model,
@@ -61,17 +78,17 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
         ...settings.params,
     };
 
-    const paneName = pane.classList.contains("left") ? "left" : "right";
+    const chatParams: OpenAI.ChatCompletionCreateParamsStreaming = {
+        stream: true,
+        model: settings.model,
+        max_tokens: settings.maxTokens,
+        messages: messages,
+        ...settings.params,
+    };
 
-    console.info(`[arrows] ${paneName}: requesting ${settings.maxTokens} tokens from ${settings.model}`);
-    if (debug) {
-        console.debug(`[arrows] ${paneName}: prompt:`, JSON.stringify(prompt), "params:", params);
-    }
-
-    const controller = new AbortController();
-    controllers.push(controller);
-
-    const stream = await client.completions.create(params, { signal: controller.signal });
+    const stream = settings.chatCompletions
+        ? await client.chat.completions.create(chatParams, { signal: controller.signal })
+        : await client.completions.create(completionParams, { signal: controller.signal });
 
     let text = "";
     let startFound = false;
@@ -82,10 +99,17 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
     for await (const chunk of stream) {
         let newText: string;
         if (chunk.hasOwnProperty("choices")) {
-            if (chunk.choices[0].finish_reason !== null) {
-                finishReason = chunk.choices[0].finish_reason;
+            const choice = chunk.choices[0];
+            if (choice.finish_reason) {
+                finishReason = choice.finish_reason;
             }
-            newText = chunk.choices[0].text;
+            if ("text" in choice) {
+                // Text completion chunk.
+                newText = choice.text;
+            } else {
+                // Chat completion chunk.
+                newText = choice.delta.content ?? "";
+            }
         } else {
             // @ts-ignore: llama.cpp
             newText = chunk.content;
@@ -144,8 +168,10 @@ async function streamText(prompt: string, pane: Element): Promise<string> {
     if (text.length === 0) {
         console.warn(`[arrows] ${paneName}: no text produced` +
             (finishReason ? ` (finish reason: ${finishReason})` : "") +
-            " — the model probably returned an immediate end-of-generation token." +
-            " Strongly chat-tuned models often do this on the raw completion endpoint.");
+            " — the model probably returned an immediate end-of-generation token" +
+            (settings.chatCompletions
+                ? "."
+                : " (chat-tuned models often do this; try enabling chat completions in the settings)."));
         pane.textContent = "[empty]";
         pane.classList.add("empty");
         scrollEmbedIntoView();

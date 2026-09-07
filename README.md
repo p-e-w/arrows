@@ -99,7 +99,8 @@ runtime in the settings panel (see below).
 
 ## Settings panel
 
-The base URL, API key, model, token limit, and generation parameters can be
+The base URL, API key, model, token limit, generation parameters, and the
+*chat completions* mode (see below) with its editable system prompt can be
 changed at runtime in the settings panel, without editing any files. Open the
 panel with the ⚙ button in the top right corner, or with
 <kbd>Ctrl</kbd>+<kbd>,</kbd> (<kbd>⌘</kbd>+<kbd>,</kbd> on macOS); close it
@@ -132,12 +133,15 @@ Check the backend server's own logs as well. For example, for Ollama run
 `journalctl -u ollama -f` (Linux), `~/.ollama/logs/server.log` (macOS), or
 `docker logs <container>` (Docker).
 
-Note that Arrows sends the document as a raw *text completion* prompt
-(`/v1/completions`). Strongly instruction- or chat-tuned models often behave
-poorly on such prompts — returning nothing at all (an immediate
+Note that by default Arrows sends the document as a raw *text completion*
+prompt (`/v1/completions`). Strongly instruction- or chat-tuned models often
+behave poorly on such prompts — returning nothing at all (an immediate
 end-of-generation token) or degenerating into repetition — because the backend
-does not apply their chat template to raw completion requests. Models trained
-for plain text continuation work best.
+does not apply their chat template to raw completion requests. For such
+models, enable **Chat completions** in the settings panel: the document is
+then sent to the chat completions endpoint together with the configurable
+system prompt. Models trained for plain text continuation work best with the
+raw endpoint.
 
 
 ## Enabling parallel generation

@@ -157,6 +157,28 @@
     cursor: default;
 }
 
+.settings-panel label.settings-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    cursor: pointer;
+}
+
+.settings-check input {
+    width: auto;
+    flex: none;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: none;
+    accent-color: #99f;
+}
+
+/* The generic label rule above would override the hidden attribute. */
+.settings-panel label[hidden] {
+    display: none;
+}
+
 .model-row input {
     flex: 1;
     min-width: 0;
